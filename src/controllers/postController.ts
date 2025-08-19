@@ -1780,7 +1780,7 @@ export const getHomeFeed = async (
     // 사용자 태그 선호도 분석
     const tagPreferences = await getUserTagPreferences(userId);
 
-    // 기본 후보 풀: 최신순으로 feedLimit+1 가져와 정확한 hasMore/nextCursor 보장
+    // 모든 공개 게시물을 최신순으로 가져오기 (페이지네이션 적용)
     const baseCandidates = await prisma.post.findMany({
       where: {
         AND: [
@@ -1815,9 +1815,9 @@ export const getHomeFeed = async (
       take: feedLimit + 1,
     });
 
+    // 실제 표시할 게시물과 hasMore 판별용 분리
     const candidateSlice = baseCandidates.slice(0, feedLimit);
     const candidateIds = candidateSlice.map((p: any) => p.id);
-    const allCandidateIds = baseCandidates.map((p: any) => p.id);
     const authorIds = Array.from(
       new Set(candidateSlice.map((p: any) => p.authorId))
     );
@@ -1872,8 +1872,8 @@ export const getHomeFeed = async (
 
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    // 점수 계산 및 피드 이유
-    const scoredInWindow = candidateSlice.map((post: any) => {
+    // 모든 게시물에 알고리즘 점수 계산 (최신순 유지하면서 점수 추가)
+    const postsWithScores = candidateSlice.map((post: any) => {
       const isFollowing = followingUserIds.has(post.authorId);
       let score = calculatePostScore(
         post,
@@ -1909,23 +1909,11 @@ export const getHomeFeed = async (
       return { ...post, algorithmScore: score, feedReason };
     });
 
-    // 다양성 보장(같은 작성자 연속 방지)
-    const sortedByScore = scoredInWindow.sort(
-      (a: any, b: any) => b.algorithmScore - a.algorithmScore
-    );
-    const diversifiedPosts: any[] = [];
-    const authorLastIndex = new Map<number, number>();
-    for (const post of sortedByScore) {
-      const lastIndex = authorLastIndex.get(post.authorId);
-      if (!lastIndex || diversifiedPosts.length - lastIndex >= 3) {
-        diversifiedPosts.push(post);
-        authorLastIndex.set(post.authorId, diversifiedPosts.length - 1);
-        if (diversifiedPosts.length >= feedLimit) break;
-      }
-    }
+    // 최신순 유지 (알고리즘 정렬 제거)
+    const finalPosts = postsWithScores;
 
     // 응답 매핑
-    const feedPosts: FeedPost[] = diversifiedPosts.map((post: any) => ({
+    const feedPosts: FeedPost[] = finalPosts.map((post: any) => ({
       id: post.id,
       title: post.title,
       description: post.description || undefined,

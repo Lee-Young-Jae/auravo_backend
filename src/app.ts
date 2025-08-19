@@ -5,6 +5,7 @@ import { env } from "./config/env";
 import { authRouter } from "./routes/auth";
 import { userRouter } from "./routes/user";
 import { postRouter } from "./routes/post";
+import { searchRouter } from "./routes/search";
 import { errorHandler } from "./middlewares/error";
 
 export const createApp = () => {
@@ -17,6 +18,7 @@ export const createApp = () => {
   app.use("/auth", authRouter);
   app.use("/users", userRouter);
   app.use("/posts", postRouter);
+  app.use("/search", searchRouter);
   app.get("/healthz", (_req, res) => res.json({ status: "ok" }));
   app.use(errorHandler);
 

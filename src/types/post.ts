@@ -193,3 +193,60 @@ export interface HomeFeedResponse {
     recentCount: number;
   };
 }
+
+// 검색 관련 타입들
+export interface SearchPostRequest {
+  q: string; // 검색어
+  limit?: number;
+  cursor?: string;
+  algorithmWeight?: {
+    relevance: number;
+    popularity: number;
+    recent: number;
+  };
+}
+
+export interface SearchUserRequest {
+  q: string;
+  limit?: number;
+}
+
+export interface SearchTagRequest {
+  q: string;
+  limit?: number;
+}
+
+export interface SearchUserResponse {
+  id: number;
+  name: string;
+  email: string;
+  profileImageUrl?: string;
+  bio?: string;
+  isFollowing?: boolean;
+  followerCount: number;
+  followingCount: number;
+  postCount: number;
+}
+
+export interface SearchTagResponse {
+  id: number;
+  name: string;
+  color: string;
+  postCount: number;
+  isFollowing?: boolean; // 향후 태그 팔로우 기능용
+}
+
+export interface TagPostsResponse {
+  tag: {
+    id: number;
+    name: string;
+    color: string;
+    postCount: number;
+  };
+  posts: FeedPost[];
+  pagination: {
+    hasMore: boolean;
+    nextCursor?: string;
+    totalShown: number;
+  };
+}
