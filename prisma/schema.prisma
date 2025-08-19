@@ -1,0 +1,234 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                Int              @id @default(autoincrement())
+  email             String           @unique
+  password          String
+  name              String
+  bio               String?          // 사용자 소개
+  location          String?          // 위치 정보
+  website           String?          // 웹사이트 URL
+  socialLinks       Json?            // 소셜 링크 (instagram, twitter 등)
+  role              String           @default("USER")
+  profileImageUrl   String?          // 프로필 사진 S3 링크 (profileImage)
+  achievements      Json?            // 업적 배열
+  preferences       Json?            // 사용자 설정 (theme, notifications 등)
+
+  posts             Post[]           // 작성한 게시글
+  bookmarks         Bookmark[]       // 저장한 게시글
+  refreshTokens     RefreshToken[]
+  collections       Collection[]     // 내 컬렉션들
+  taggedPosts       PostFriend[]     // 태그된 게시글들
+  likes             PostLike[]
+  exposures         PostExposure[]
+  views             PostView[]
+  comments          Comment[]
+  commentMentions   CommentMention[]
+
+  // 팔로우/팔로잉
+  followers         Follow[]         @relation("user_following", fields: [], references: [])
+  followings        Follow[]         @relation("user_follower", fields: [], references: [])
+
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique @db.VarChar(512)
+  expiresAt DateTime
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+
+  createdAt DateTime @default(now())
+}
+
+model Post {
+  id           Int           @id @default(autoincrement())
+  title        String        // 게시글 제목
+  description  String?       // 게시글 설명
+  author       User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId     Int
+  collection   Collection?   @relation(fields: [collectionId], references: [id])
+  collectionId Int?          // 컬렉션 ID (선택사항)
+  isPrivate    Boolean       @default(false) // 비공개 여부
+  effect       Json?         // 이펙트 정보 (holoCard 등)
+  viewCount    Int           @default(0)     // 조회수
+  deletedAt    DateTime?                     // 소프트 삭제 시각
+
+  photos       Photo[]       // 사진 세트
+  tags         PostTag[]
+  bookmarks    Bookmark[]
+  taggedFriends PostFriend[] // 태그된 친구들
+  likes        PostLike[]
+  exposures    PostExposure[]
+  views        PostView[]
+  comments     Comment[]
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+// 댓글
+model Comment {
+  id        Int       @id @default(autoincrement())
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    Int
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId  Int
+  content   String
+  edited    Boolean   @default(false)
+  deletedAt DateTime?
+
+  mentions  CommentMention[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+// 댓글 내 멘션 정보(태그된 사용자)
+model CommentMention {
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  commentId Int
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+
+  // 향후 클라이언트 하이라이트를 위한 위치/길이 정보 확장 가능
+  // start   Int?
+  // length  Int?
+
+  createdAt DateTime @default(now())
+
+  @@id([commentId, userId])
+}
+
+model Photo {
+  id            Int      @id @default(autoincrement())
+  post          Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId        Int
+
+  // S3에 저장된 URL (원본, 배경, 전경)
+  original      String   // 원본 이미지
+  background    String   // 배경 이미지
+  foreground    String   // 전경 이미지
+  thumbnail     String  // 썸네일 이미지
+
+  createdAt     DateTime @default(now())
+}
+
+model Tag {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  color     String    @default("blue") // 태그 색상
+
+  posts     PostTag[]
+
+  createdAt DateTime  @default(now())
+}
+
+// 게시글-태그 N:M 조인
+model PostTag {
+  post    Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId  Int
+  tag     Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagId   Int
+
+  @@id([postId, tagId])
+}
+
+// 사용자의 게시글 저장(북마크)
+model Bookmark {
+  user     User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   Int
+  post     Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId   Int
+
+  createdAt DateTime @default(now())
+
+  @@id([userId, postId])
+}
+
+// 사용자 팔로우 관계
+model Follow {
+  follower   User @relation("user_follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followerId Int
+  following  User @relation("user_following", fields: [followingId], references: [id], onDelete: Cascade)
+  followingId Int
+
+  createdAt  DateTime @default(now())
+
+  @@id([followerId, followingId])
+}
+
+// 컬렉션 모델
+model Collection {
+  id          Int      @id @default(autoincrement())
+  name        String   // 컬렉션 이름
+  description String?  // 컬렉션 설명
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId     Int      // 컬렉션 소유자
+  isPrivate   Boolean  @default(false) // 비공개 여부
+
+  posts       Post[]   // 컬렉션에 속한 게시글들
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// 게시글에 태그된 친구들
+model PostFriend {
+  post     Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId   Int
+  user     User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   Int
+
+  createdAt DateTime @default(now())
+
+  @@id([postId, userId])
+}
+
+// 게시글 좋아요
+model PostLike {
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId Int
+
+  createdAt DateTime @default(now())
+
+  @@id([userId, postId])
+  @@map("post_likes")
+}
+
+// 피드 노출 로그 (사용자에게 노출된 기록)
+model PostExposure {
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId Int
+
+  createdAt DateTime @default(now())
+
+  @@id([userId, postId])
+}
+
+// 상세 열람 로그 (사용자가 실제로 본 기록)
+model PostView {
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId Int
+
+  createdAt DateTime @default(now())
+
+  @@id([userId, postId])
+}
