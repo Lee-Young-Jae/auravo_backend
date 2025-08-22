@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { verifyToken } from "../utils/jwt";
+import { verifyToken, JwtPayload } from "../utils/jwt";
 
 // 선택적 인증 미들웨어 (토큰이 있으면 인증, 없으면 비회원으로 처리)
 export const optionalAuthenticate = (
@@ -14,19 +14,24 @@ export const optionalAuthenticate = (
 
     if (header?.startsWith("Bearer ")) {
       token = header.split(" ")[1];
-      console.log("Authorization 헤더에서 토큰 발견");
     }
     // 2. Authorization 헤더가 없으면 쿠키에서 확인
     else if (req.cookies?.accessToken) {
       token = req.cookies.accessToken;
-      console.log("쿠키에서 토큰 발견");
     }
 
     if (token) {
       try {
         // 토큰이 있으면 인증 처리
-        const decoded = verifyToken(token);
-        req.user = decoded;
+        const decoded = verifyToken<JwtPayload>(token);
+        
+        // JWT 메타데이터 제거하고 필요한 필드만 추출
+        req.user = {
+          sub: decoded.sub,
+          id: decoded.id,
+          email: decoded.email,
+          role: decoded.role,
+        };
       } catch (error) {
         // 토큰이 유효하지 않으면 비회원으로 처리 (에러 발생시키지 않음)
         req.user = undefined;

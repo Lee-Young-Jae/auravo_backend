@@ -679,6 +679,7 @@ export const likePost = async (
 ) => {
   try {
     const userId = req.user?.id;
+
     const { postId } = req.params;
 
     if (!userId) {

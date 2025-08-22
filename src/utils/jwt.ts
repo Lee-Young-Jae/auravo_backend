@@ -3,6 +3,7 @@ import { env } from "../config/env";
 
 export interface JwtPayload {
   sub: number;
+  id: number;    // 편의를 위해 id 필드 추가
   email: string;
   role: string;
 }
