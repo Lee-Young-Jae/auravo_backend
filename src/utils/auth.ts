@@ -51,8 +51,10 @@ export async function createUserSession(
   });
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
-    sameSite: "strict",
+    sameSite: "none",
     maxAge: maxAgeR,
+    secure: true,
+    domain: ".auravo.site",
   });
 
   return { accessToken, refreshToken };
