@@ -169,10 +169,21 @@ export const kakaoCallback = async (
     });
 
     // 4) 우리 JWT 발급 & 쿠키 세팅
-    await createUserSession(user.id, res);
+    const { accessToken } = await createUserSession(user.id, res);
 
     // 5) 프론트로 리다이렉트
-    res.redirect(env.FRONTEND_REDIRECT);
+
+    console.log({ user });
+
+    res.json({
+      accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
+    });
   } catch (err) {
     next(err);
   }
