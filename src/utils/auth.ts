@@ -5,6 +5,16 @@ import { parseTTL } from "./parseTTL";
 import { Response } from "express";
 import { env } from "../config/env";
 
+const isProd = process.env.NODE_ENV === "production";
+
+export const refreshCookieOptions = {
+  httpOnly: true,
+  secure: isProd, // 운영 필수(HTTPS)
+  sameSite: "lax" as const, // auravo.site <-> api.auravo.site는 same-site
+  path: "/auth", // refresh/logout 등 최소 범위
+  maxAge: 1000 * 60 * 60 * 24 * 14, // 14d
+};
+
 export async function createUserSession(
   userId: number,
   res: Response
@@ -41,19 +51,8 @@ export async function createUserSession(
     },
   });
 
-  // 5) HTTP-Only 쿠키 세팅
-  const maxAgeA = parseTTL(env.ACCESS_TOKEN_TTL);
-  const maxAgeR = parseTTL(env.REFRESH_TOKEN_TTL);
-  res.cookie("accessToken", accessToken, {
-    httpOnly: true,
-    sameSite: "strict",
-    maxAge: maxAgeA,
-  });
-  res.cookie("refreshToken", refreshToken, {
-    httpOnly: true,
-    sameSite: "strict",
-    maxAge: maxAgeR,
-  });
+  // 5) Refresh Token만 HTTP-Only 쿠키로 설정 (Access Token은 JSON으로만 반환)
+  res.cookie("refresh_token", refreshToken, refreshCookieOptions);
 
   return { accessToken, refreshToken };
 }

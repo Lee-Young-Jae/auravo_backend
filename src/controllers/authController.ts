@@ -18,28 +18,9 @@ import { toPrismaJson } from "../utils/jsonHelpers";
 
 dayjs.extend(duration);
 
-const REFRESH_COOKIE = "refreshToken";
+const REFRESH_COOKIE = "refresh_token";
 
-const cookieOpts = (maxAge: number) => {
-  const isProd = process.env.NODE_ENV === "production";
-  return {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: "strict" as const,
-    maxAge,
-  };
-};
-
-const setAuthCookies = (
-  res: Response,
-  accessToken: string,
-  refreshToken: string
-) => {
-  // const accessMaxAge = parseTTL(env.ACCESS_TOKEN_TTL);
-  const refreshMaxAge = parseTTL(env.REFRESH_TOKEN_TTL);
-  // res.cookie(ACCESS_COOKIE, accessToken, cookieOpts(accessMaxAge));
-  res.cookie(REFRESH_COOKIE, refreshToken, cookieOpts(refreshMaxAge));
-};
+import { refreshCookieOptions } from "../utils/auth";
 
 export const register = async (
   req: Request,
@@ -172,18 +153,13 @@ export const kakaoCallback = async (
     const { accessToken } = await createUserSession(user.id, res);
 
     // 5) 프론트로 리다이렉트
-
-    console.log({ user });
-
-    res.json({
-      accessToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
-    });
+    const { password: _, ...safeUser } = user;
+    const returnTo = req.query.returnTo || "/";
+    return res.redirect(
+      `${
+        env.FRONTEND_REDIRECT || "http://localhost:3000"
+      }${returnTo}?accessToken=${accessToken}`
+    );
   } catch (err) {
     next(err);
   }
@@ -200,17 +176,39 @@ export const refresh = async (
     if (!refreshToken)
       return res.status(401).json({ message: "No refresh token" });
 
+    // 토큰 회전 로직 (재사용 감지 포함)
+    const result = await rotateRefreshToken(refreshToken);
+    if (!result) {
+      // 재사용 감지 또는 토큰 무효 - 모든 세션 무효화
+      res.clearCookie(REFRESH_COOKIE, {
+        ...refreshCookieOptions,
+        maxAge: 0,
+      });
+      return res.status(401).json({ message: "Invalid refresh token" });
+    }
+
+    const { newRefreshToken, accessToken } = result;
+    res.cookie(REFRESH_COOKIE, newRefreshToken, refreshCookieOptions);
+
+    res.json({ accessToken });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// 토큰 회전 및 재사용 감지 로직
+async function rotateRefreshToken(refreshToken: string) {
+  try {
     const stored = await prisma.refreshToken.findUnique({
       where: { token: refreshToken },
       include: { user: true },
     });
-    console.log({ stored });
+
     if (!stored || stored.expiresAt < new Date()) {
-      return res.status(401).json({ message: "Refresh token expired" });
+      return null;
     }
 
     const payload = verifyToken<JwtPayload>(refreshToken);
-    console.log({ payload });
 
     const cleanPayload: JwtPayload = {
       sub: payload.sub,
@@ -219,19 +217,44 @@ export const refresh = async (
       role: payload.role,
     };
 
+    // 기존 토큰 삭제 (회전)
     await prisma.refreshToken.delete({ where: { token: refreshToken } });
-    const newRefresh = signRefreshToken(cleanPayload);
+
+    // 새 토큰들 생성
+    const newRefreshToken = signRefreshToken(cleanPayload);
+    const accessToken = signAccessToken(cleanPayload);
+
+    // 새 리프레시 토큰 DB 저장
     await prisma.refreshToken.create({
       data: {
-        token: newRefresh,
+        token: newRefreshToken,
         userId: payload.sub,
         expiresAt: new Date(Date.now() + parseTTL(env.REFRESH_TOKEN_TTL)),
       },
     });
-    const newAccess = signAccessToken(cleanPayload);
-    setAuthCookies(res, newAccess, newRefresh);
 
-    res.json({ accessToken: newAccess });
+    return { newRefreshToken, accessToken };
+  } catch (err) {
+    // 토큰 검증 실패 또는 기타 오류
+    return null;
+  }
+}
+
+export const logout = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const refreshToken = req.cookies[REFRESH_COOKIE];
+    if (refreshToken) {
+      await prisma.refreshToken.deleteMany({ where: { token: refreshToken } });
+    }
+    res.clearCookie(REFRESH_COOKIE, {
+      ...refreshCookieOptions,
+      maxAge: 0,
+    });
+    return res.sendStatus(204);
   } catch (err) {
     next(err);
   }

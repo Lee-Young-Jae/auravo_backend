@@ -8,16 +8,12 @@ export const optionalAuthenticate = (
   next: NextFunction
 ) => {
   try {
-    // 1. Authorization 헤더에서 토큰 확인
+    // Authorization 헤더에서만 토큰 확인 (쿠키는 사용하지 않음)
     let token: string | undefined;
     const header = req.headers.authorization;
 
     if (header?.startsWith("Bearer ")) {
       token = header.split(" ")[1];
-    }
-    // 2. Authorization 헤더가 없으면 쿠키에서 확인
-    else if (req.cookies?.accessToken) {
-      token = req.cookies.accessToken;
     }
 
     if (token) {
