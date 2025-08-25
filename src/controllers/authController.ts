@@ -15,6 +15,7 @@ import { createUserSession } from "../utils/auth";
 import { parseTTL } from "../utils/parseTTL";
 import { getDefaultUserData } from "../utils/userDefaults";
 import { toPrismaJson } from "../utils/jsonHelpers";
+import { AuraService } from "../services/auraService";
 
 dayjs.extend(duration);
 
@@ -76,6 +77,12 @@ export const login = async (
 
     // 공통 헬퍼로 세션 생성 & 토큰 발급
     const { accessToken, refreshToken } = await createUserSession(user.id, res);
+
+    // 일일 로그인 퀘스트 진행도 증가 (보상은 퀘스트 페이지에서 수령)
+    AuraService.incrementQuestProgress(user.id, 'DAILY_LOGIN')
+      .catch(error => {
+        console.error('Failed to increment login quest:', error);
+      });
 
     // 비밀번호 제거한 사용자 정보 반환
     const { password: _, ...safeUser } = user;
@@ -151,6 +158,12 @@ export const kakaoCallback = async (
 
     // 4) 우리 JWT 발급 & 쿠키 세팅
     const { accessToken } = await createUserSession(user.id, res);
+
+    // 일일 로그인 퀘스트 진행도 증가 (보상은 퀘스트 페이지에서 수령)
+    AuraService.incrementQuestProgress(user.id, 'DAILY_LOGIN')
+      .catch(error => {
+        console.error('Failed to increment login quest:', error);
+      });
 
     // 5) 프론트로 리다이렉트
     const { password: _, ...safeUser } = user;

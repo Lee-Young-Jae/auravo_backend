@@ -13,6 +13,7 @@ import {
   CreateCommentRequest,
 } from "../types/post";
 import { toPrismaJson } from "../utils/jsonHelpers";
+import { AuraService } from "../services/auraService";
 
 // 커서 유틸: "<iso>|<id>" 형식 사용
 const buildCursorCondition = (cursor?: string) => {
@@ -209,6 +210,12 @@ export const createPost = async (
     if (!createdPost) {
       return res.status(500).json({ message: "게시글 생성에 실패했습니다" });
     }
+
+    // 게시글 작성 퀘스트 진행도 증가 (보상은 퀘스트 페이지에서 수령)
+    AuraService.incrementQuestProgress(userId, 'POST_CREATE', createdPost.id)
+      .catch(error => {
+        console.error('Failed to increment post creation quest:', error);
+      });
 
     // 응답 데이터 구성
     const response: PostResponse = {
@@ -708,6 +715,12 @@ export const likePost = async (
     }
 
     await prisma.postLike.create({ data: { userId, postId: postIdNum } });
+
+    // 좋아요 퀘스트 진행도 증가 (보상은 퀘스트 페이지에서 수령)
+    AuraService.incrementQuestProgress(userId, 'LIKE_GIVE', postIdNum)
+      .catch(error => {
+        console.error('Failed to increment like quest:', error);
+      });
 
     return res.status(201).json({ message: "좋아요했습니다", liked: true });
   } catch (err) {
@@ -2346,6 +2359,12 @@ export const createComment = async (
 
       return c.id;
     });
+
+    // 댓글 작성 퀘스트 진행도 증가 (보상은 퀘스트 페이지에서 수령)
+    AuraService.incrementQuestProgress(userId, 'COMMENT_CREATE', postIdNum, created)
+      .catch(error => {
+        console.error('Failed to increment comment creation quest:', error);
+      });
 
     res
       .status(201)

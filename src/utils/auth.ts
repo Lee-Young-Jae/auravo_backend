@@ -11,7 +11,7 @@ export const refreshCookieOptions = {
   httpOnly: true,
   secure: isProd, // 운영 필수(HTTPS)
   sameSite: "lax" as const, // auravo.site <-> api.auravo.site는 same-site
-  path: "/auth", // refresh/logout 등 최소 범위
+  path: "/", // refresh/logout 등 최소 범위
   maxAge: 1000 * 60 * 60 * 24 * 14, // 14d
 };
 

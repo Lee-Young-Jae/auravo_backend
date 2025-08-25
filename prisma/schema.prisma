@@ -22,6 +22,8 @@ model User {
   profileImageUrl   String?          // 프로필 사진 S3 링크 (profileImage)
   achievements      Json?            // 업적 배열
   preferences       Json?            // 사용자 설정 (theme, notifications 등)
+  auraBalance       Int              @default(0) // 현재 aura 잔액
+  totalAuraEarned   Int              @default(0) // 총 획득한 aura (통계용)
 
   posts             Post[]           // 작성한 게시글
   bookmarks         Bookmark[]       // 저장한 게시글
@@ -33,6 +35,8 @@ model User {
   views             PostView[]
   comments          Comment[]
   commentMentions   CommentMention[]
+  auraTransactions  AuraTransaction[] // aura 거래 내역
+  dailyProgress     UserDailyProgress[] // 일일 퀘스트 진행도
 
   // 팔로우/팔로잉
   followers         Follow[]         @relation("user_following", fields: [], references: [])
@@ -231,4 +235,83 @@ model PostView {
   createdAt DateTime @default(now())
 
   @@id([userId, postId])
+}
+
+// 일일 퀘스트 정의
+model DailyQuest {
+  id           Int                  @id @default(autoincrement())
+  type         String               @unique // "POST_CREATE", "COMMENT_CREATE", "DAILY_LOGIN", "LIKE_GIVE"
+  name         String               // 퀘스트 이름
+  description  String               // 퀘스트 설명
+  maxCount     Int                  // 일일 최대 완료 횟수 (예: 글쓰기 3회, 댓글 5회)
+  baseReward   Int                  // 기본 보상 (스케일링 전)
+  isActive     Boolean              @default(true) // 활성화 여부
+  
+  userProgress UserDailyProgress[]  // 사용자별 진행도
+  
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+}
+
+// 사용자별 일일 퀘스트 진행도
+model UserDailyProgress {
+  id             Int         @id @default(autoincrement())
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         Int
+  quest          DailyQuest  @relation(fields: [questId], references: [id], onDelete: Cascade)
+  questId        Int
+  currentCount   Int         @default(0) // 현재 완료 횟수
+  rewardsReceived Int        @default(0) // 받은 보상 횟수 (개별 보상 추적용)
+  lastRewardAt   DateTime?   // 마지막 보상 받은 시간
+  date           DateTime    @db.Date // 해당 날짜 (매일 초기화용)
+  
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  
+  @@unique([userId, questId, date]) // 유저, 퀘스트, 날짜별 유일성
+  @@index([date]) // 날짜별 조회 최적화
+}
+
+// Aura 거래 내역 (포인트 적립/차감/거래 로그)
+model AuraTransaction {
+  id           Int      @id @default(autoincrement())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       Int
+  amount       Int      // 적립/차감 금액 (양수: 적립, 음수: 차감)
+  balanceAfter Int      // 거래 후 잔액
+  type         String   // "QUEST_REWARD", "TRANSFER_SEND", "TRANSFER_RECEIVE", "ADMIN"
+  description  String?  // 거래 설명
+  
+  // 퀘스트 관련 (퀘스트 보상인 경우)
+  questId      Int?     // 관련 퀘스트 ID
+  
+  // P2P 거래 관련 (유저간 거래인 경우)
+  fromUserId   Int?     // 보내는 사용자 (거래 시)
+  toUserId     Int?     // 받는 사용자 (거래 시)
+  transferId   String?  // 거래 추적용 고유 ID
+  
+  // 연관 엔티티 (활동 기반 보상인 경우)
+  relatedPostId    Int? // 게시글 관련
+  relatedCommentId Int? // 댓글 관련
+  
+  createdAt    DateTime @default(now())
+  
+  @@index([userId, createdAt]) // 사용자별 거래 내역 조회 최적화
+  @@index([transferId]) // 거래 추적 최적화
+}
+
+// Aura 보상 스케일링 통계 (일일/월별 평균 계산용)
+model AuraStats {
+  id              Int      @id @default(autoincrement())
+  date            DateTime @db.Date // 통계 날짜
+  period          String   // "DAILY" | "MONTHLY"
+  totalUsers      Int      // 총 활성 사용자 수
+  totalEarned     Int      // 총 획득 aura
+  avgEarnPerUser  Float    // 사용자당 평균 획득량
+  scalingFactor   Float    @default(1.0) // 다음날/다음달 적용할 스케일링 팩터
+  
+  createdAt       DateTime @default(now())
+  
+  @@unique([date, period]) // 날짜와 기간별 유일성
+  @@index([date, period]) // 조회 최적화
 }
