@@ -59,9 +59,9 @@ export const createPost = async (
     // 필수 필드 검증
     if (
       !title ||
-      !images?.original ||
-      !images?.background ||
-      !images?.foreground
+      !images?.original
+      // !images?.background ||
+      // !images?.foreground
     ) {
       return res.status(400).json({
         message: "제목과 이미지 정보는 필수입니다",
@@ -93,7 +93,23 @@ export const createPost = async (
           authorId: userId,
           collectionId,
           isPrivate: isPrivate || false,
-          effect: effect ? toPrismaJson(effect) : null,
+          effect: effect
+            ? toPrismaJson(effect)
+            : toPrismaJson({
+                id: "pure",
+                kind: "pure",
+                label: "기본",
+                params: {},
+                metadata: {
+                  tags: ["순수", "정적", "원본"],
+                  category: "basic",
+                  description:
+                    "완전한 원본 이미지, 어떠한 효과도 적용되지 않습니다",
+                  recommendedUse: ["제품 사진", "포트폴리오", "미니멀 디자인"],
+                  interactionType: "없음",
+                  performanceLevel: 5,
+                },
+              }),
         },
       });
 
@@ -102,8 +118,8 @@ export const createPost = async (
         data: {
           postId: post.id,
           original: images.original,
-          background: images.background,
-          foreground: images.foreground,
+          background: images.background ?? images.original,
+          foreground: images.foreground ?? images.original,
           thumbnail: images.thumbnail ?? images.original,
         },
       });
