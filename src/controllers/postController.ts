@@ -14,6 +14,7 @@ import {
 } from "../types/post";
 import { toPrismaJson } from "../utils/jsonHelpers";
 import { AuraService } from "../services/auraService";
+import { NotificationService } from "../services/notificationService";
 
 // 커서 유틸: "<iso>|<id>" 형식 사용
 const buildCursorCondition = (cursor?: string) => {
@@ -235,6 +236,13 @@ export const createPost = async (
     ).catch((error) => {
       console.error("Failed to increment post creation quest:", error);
     });
+
+    // 태그된 친구들에게 알림 전송
+    if (createdPost.taggedFriends && createdPost.taggedFriends.length > 0) {
+      createdPost.taggedFriends.forEach(taggedFriend => {
+        NotificationService.notifyPostTag(taggedFriend.userId, createdPost.id, userId);
+      });
+    }
 
     // 응답 데이터 구성
     const response: PostResponse = {
@@ -779,6 +787,9 @@ export const likePost = async (
         console.error("Failed to increment like quest:", error);
       }
     );
+
+    // 좋아요 알림 전송
+    NotificationService.notifyPostLike(postIdNum, userId);
 
     return res.status(201).json({ message: "좋아요했습니다", liked: true });
   } catch (err) {
@@ -2427,6 +2438,16 @@ export const createComment = async (
     ).catch((error) => {
       console.error("Failed to increment comment creation quest:", error);
     });
+
+    // 댓글 알림 전송 (게시글 작성자에게)
+    NotificationService.notifyComment(postIdNum, created, userId, content);
+
+    // 멘션 알림 전송 (멘션된 사용자들에게)
+    if (mentionIds.length > 0) {
+      mentionIds.forEach(mentionedUserId => {
+        NotificationService.notifyMention(mentionedUserId, created, userId, content);
+      });
+    }
 
     res
       .status(201)

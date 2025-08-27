@@ -42,6 +42,10 @@ model User {
   followers         Follow[]         @relation("user_following", fields: [], references: [])
   followings        Follow[]         @relation("user_follower", fields: [], references: [])
 
+  // 알림
+  receivedNotifications Notification[] @relation("NotificationRecipient")
+  sentNotifications     Notification[] @relation("NotificationActor")
+
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 }
@@ -314,4 +318,28 @@ model AuraStats {
   
   @@unique([date, period]) // 날짜와 기간별 유일성
   @@index([date, period]) // 조회 최적화
+}
+
+// 알림 시스템
+model Notification {
+  id           Int      @id @default(autoincrement())
+  recipient    User     @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  recipientId  Int
+  actor        User?    @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  actorId      Int?
+  
+  type         String   // "FOLLOW", "POST_LIKE", "COMMENT", "MENTION", "POST_TAG"
+  isRead       Boolean  @default(false)
+  
+  // 관련 엔티티 참조
+  postId       Int?     // 게시글 관련 알림
+  commentId    Int?     // 댓글 관련 알림
+  
+  // 알림 내용 (타입별 정보)
+  metadata     Json?    // 추가 정보 저장용 (게시글 제목, 댓글 내용 일부 등)
+  
+  createdAt    DateTime @default(now())
+  
+  @@index([recipientId, isRead, createdAt])
+  @@index([createdAt]) // 정리용
 }

@@ -6,6 +6,7 @@ import {
   mapToMyProfile,
 } from "../utils/userMapper";
 import { toPrismaJson } from "../utils/jsonHelpers";
+import { NotificationService } from "../services/notificationService";
 
 // 팔로우 하기
 export const followUser = async (
@@ -64,6 +65,9 @@ export const followUser = async (
         followingId: targetId,
       },
     });
+
+    // 팔로우 알림 전송
+    NotificationService.notifyFollow(targetId, meId);
 
     return res
       .status(201)
