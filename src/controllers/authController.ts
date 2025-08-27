@@ -79,10 +79,11 @@ export const login = async (
     const { accessToken, refreshToken } = await createUserSession(user.id, res);
 
     // 일일 로그인 퀘스트 진행도 증가 (보상은 퀘스트 페이지에서 수령)
-    AuraService.incrementQuestProgress(user.id, 'DAILY_LOGIN')
-      .catch(error => {
-        console.error('Failed to increment login quest:', error);
-      });
+    AuraService.incrementQuestProgress(user.id, "DAILY_LOGIN").catch(
+      (error) => {
+        console.error("Failed to increment login quest:", error);
+      }
+    );
 
     // 비밀번호 제거한 사용자 정보 반환
     const { password: _, ...safeUser } = user;
@@ -160,10 +161,11 @@ export const kakaoCallback = async (
     const { accessToken } = await createUserSession(user.id, res);
 
     // 일일 로그인 퀘스트 진행도 증가 (보상은 퀘스트 페이지에서 수령)
-    AuraService.incrementQuestProgress(user.id, 'DAILY_LOGIN')
-      .catch(error => {
-        console.error('Failed to increment login quest:', error);
-      });
+    AuraService.incrementQuestProgress(user.id, "DAILY_LOGIN").catch(
+      (error) => {
+        console.error("Failed to increment login quest:", error);
+      }
+    );
 
     // 5) 프론트로 리다이렉트
     const { password: _, ...safeUser } = user;
@@ -260,6 +262,7 @@ export const logout = async (
 ) => {
   try {
     const refreshToken = req.cookies[REFRESH_COOKIE];
+    console.log("refreshToken", refreshToken);
     if (refreshToken) {
       await prisma.refreshToken.deleteMany({ where: { token: refreshToken } });
     }

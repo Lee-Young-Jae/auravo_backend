@@ -72,6 +72,15 @@ export interface PostResponse {
   }[];
   createdAt: string;
   updatedAt: string;
+  stats: {
+    likeCount: number;
+    bookmarkCount: number;
+    commentCount: number;
+    viewCount: number;
+  };
+  isLiked: boolean;
+  isBookmarked: boolean;
+  isMyPost: boolean;
 }
 
 export interface TagResponse {

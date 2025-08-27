@@ -212,10 +212,13 @@ export const createPost = async (
     }
 
     // 게시글 작성 퀘스트 진행도 증가 (보상은 퀘스트 페이지에서 수령)
-    AuraService.incrementQuestProgress(userId, 'POST_CREATE', createdPost.id)
-      .catch(error => {
-        console.error('Failed to increment post creation quest:', error);
-      });
+    AuraService.incrementQuestProgress(
+      userId,
+      "POST_CREATE",
+      createdPost.id
+    ).catch((error) => {
+      console.error("Failed to increment post creation quest:", error);
+    });
 
     // 응답 데이터 구성
     const response: PostResponse = {
@@ -246,6 +249,15 @@ export const createPost = async (
         name: pf.user.name,
         profileImageUrl: pf.user.profileImageUrl || undefined,
       })),
+      stats: {
+        likeCount: 0,
+        bookmarkCount: 0,
+        commentCount: 0,
+        viewCount: 0,
+      },
+      isLiked: false,
+      isBookmarked: false,
+      isMyPost: true,
       createdAt: createdPost.createdAt.toISOString(),
       updatedAt: createdPost.updatedAt.toISOString(),
     };
@@ -373,6 +385,24 @@ export const updatePost = async (
             user: { select: { id: true, name: true, profileImageUrl: true } },
           },
         },
+        _count: {
+          select: {
+            likes: true,
+            bookmarks: true,
+            comments: true,
+            views: true,
+          },
+        },
+        likes: {
+          include: {
+            user: { select: { id: true, name: true, profileImageUrl: true } },
+          },
+        },
+        bookmarks: {
+          include: {
+            user: { select: { id: true, name: true, profileImageUrl: true } },
+          },
+        },
       },
     });
 
@@ -397,6 +427,17 @@ export const updatePost = async (
         foreground: updated.photos[0]?.foreground || "",
         thumbnail: updated.photos[0]?.thumbnail || "",
       },
+      stats: {
+        likeCount: updated._count.likes,
+        bookmarkCount: updated._count.bookmarks,
+        commentCount: updated._count.comments,
+        viewCount: updated._count.views,
+      },
+      isLiked: updated.likes.some((like: any) => like.userId === userId),
+      isBookmarked: updated.bookmarks.some(
+        (bookmark: any) => bookmark.userId === userId
+      ),
+      isMyPost: true,
       effect: updated.effect,
       tags:
         updated.tags?.map((pt: any) => ({
@@ -717,10 +758,11 @@ export const likePost = async (
     await prisma.postLike.create({ data: { userId, postId: postIdNum } });
 
     // 좋아요 퀘스트 진행도 증가 (보상은 퀘스트 페이지에서 수령)
-    AuraService.incrementQuestProgress(userId, 'LIKE_GIVE', postIdNum)
-      .catch(error => {
-        console.error('Failed to increment like quest:', error);
-      });
+    AuraService.incrementQuestProgress(userId, "LIKE_GIVE", postIdNum).catch(
+      (error) => {
+        console.error("Failed to increment like quest:", error);
+      }
+    );
 
     return res.status(201).json({ message: "좋아요했습니다", liked: true });
   } catch (err) {
@@ -2361,10 +2403,14 @@ export const createComment = async (
     });
 
     // 댓글 작성 퀘스트 진행도 증가 (보상은 퀘스트 페이지에서 수령)
-    AuraService.incrementQuestProgress(userId, 'COMMENT_CREATE', postIdNum, created)
-      .catch(error => {
-        console.error('Failed to increment comment creation quest:', error);
-      });
+    AuraService.incrementQuestProgress(
+      userId,
+      "COMMENT_CREATE",
+      postIdNum,
+      created
+    ).catch((error) => {
+      console.error("Failed to increment comment creation quest:", error);
+    });
 
     res
       .status(201)

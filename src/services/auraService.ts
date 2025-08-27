@@ -27,7 +27,9 @@ export class AuraService {
   // 사용자의 일일 퀘스트 진행도 조회
   static async getUserDailyProgress(userId: number): Promise<QuestProgress[]> {
     const today = new Date();
-    const todayDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())); // UTC 기준 자정
+    const todayDate = new Date(
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
+    ); // UTC 기준 자정
 
     // 활성 퀘스트 목록
     const activeQuests = await prisma.dailyQuest.findMany({
@@ -54,7 +56,8 @@ export class AuraService {
 
       const currentCount = progress?.currentCount || 0;
       const rewardsReceived = progress?.rewardsReceived || 0;
-      const availableRewards = Math.min(currentCount, quest.maxCount) - rewardsReceived;
+      const availableRewards =
+        Math.min(currentCount, quest.maxCount) - rewardsReceived;
       const scaledReward = Math.round(quest.baseReward * scalingFactor); // 개별 보상 금액
 
       progressList.push({
@@ -88,7 +91,9 @@ export class AuraService {
     maxCount?: number;
   }> {
     const today = new Date();
-    const todayDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())); // UTC 기준 자정
+    const todayDate = new Date(
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
+    ); // UTC 기준 자정
 
     // 퀘스트 조회
     const quest = await prisma.dailyQuest.findUnique({
@@ -134,7 +139,9 @@ export class AuraService {
     questId: number
   ): Promise<{ success: boolean; amount?: number; message?: string }> {
     const today = new Date();
-    const todayDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())); // UTC 기준 자정
+    const todayDate = new Date(
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
+    ); // UTC 기준 자정
 
     const quest = await prisma.dailyQuest.findUnique({
       where: { id: questId, isActive: true },
@@ -160,8 +167,10 @@ export class AuraService {
     }
 
     // 받을 수 있는 보상 횟수 확인 (진행도에서 이미 받은 보상 횟수를 뺀 값)
-    const availableRewards = Math.min(progress.currentCount, quest.maxCount) - (progress.rewardsReceived || 0);
-    
+    const availableRewards =
+      Math.min(progress.currentCount, quest.maxCount) -
+      (progress.rewardsReceived || 0);
+
     if (availableRewards <= 0) {
       return { success: false, message: "받을 수 있는 보상이 없습니다." };
     }
@@ -511,15 +520,15 @@ export class AuraService {
     const defaultQuests = [
       {
         type: "POST_CREATE",
-        name: "글쓰기 달인",
-        description: "게시글을 작성해보세요",
+        name: "나만의 이미지 업로드",
+        description: "오늘 첫 이미지를 게시하고 AURA를 받아보세요!",
         maxCount: 3,
         baseReward: 50,
       },
       {
         type: "COMMENT_CREATE",
-        name: "소통 전문가",
-        description: "댓글을 작성해보세요",
+        name: "댓글 달고 AURA 받기",
+        description: "댓글을 작성하고 이 페이지로 돌아와서 AURA를 획득하세요.",
         maxCount: 5,
         baseReward: 20,
       },
@@ -532,8 +541,9 @@ export class AuraService {
       },
       {
         type: "LIKE_GIVE",
-        name: "좋아요 나누기",
-        description: "다른 사용자의 게시글에 좋아요를 눌러보세요",
+        name: "다른 사람의 작품에 '좋아요' 누르면",
+        description:
+          "다른 사용자의 작품에 좋아요를 누르고 이 페이지로 돌아와서 AURA를 획득하세요.",
         maxCount: 10,
         baseReward: 10,
       },
