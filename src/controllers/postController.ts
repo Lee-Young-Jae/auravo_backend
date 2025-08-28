@@ -994,7 +994,7 @@ export const getUserPosts = async (
     const items = posts.slice(0, parsedLimit);
 
     const hasMore = posts.length > items.length;
-    const nextCursor = hasMore ? String(items[items.length - 1].id) : undefined;
+    const nextCursor = hasMore ? makeNextCursor(items[items.length - 1]) : undefined;
 
     // 응답 매핑 (FeedPost 재사용)
     const results: FeedPost[] = items.map((post: any) => ({
