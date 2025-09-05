@@ -116,6 +116,7 @@ export interface UserArtworkResponse extends ArtworkResponse {
   gallery: {
     id: number;
     name: string;
+    type: string;
   };
   slotNumber: number;
 }
