@@ -106,7 +106,8 @@ export const transferAura = async (
       fromUserId,
       toUserId,
       amount,
-      message
+      message,
+      req.user?.role === "ADMIN"
     );
 
     if (result.success) {

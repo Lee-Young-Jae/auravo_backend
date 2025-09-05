@@ -270,13 +270,14 @@ export class AuraService {
     fromUserId: number,
     toUserId: number,
     amount: number,
-    message?: string
+    message?: string,
+    isAdmin?: boolean
   ): Promise<AuraTransferResult> {
     if (amount <= 0) {
       return { success: false, message: "전송 금액은 0보다 커야 합니다." };
     }
 
-    if (fromUserId === toUserId) {
+    if (fromUserId === toUserId && !isAdmin) {
       return { success: false, message: "자기 자신에게는 전송할 수 없습니다." };
     }
 
