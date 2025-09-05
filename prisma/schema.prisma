@@ -38,6 +38,10 @@ model User {
   auraTransactions  AuraTransaction[] // aura 거래 내역
   dailyProgress     UserDailyProgress[] // 일일 퀘스트 진행도
 
+  // 갤러리 관련
+  ownedGalleries    Gallery[]        // 소유한 갤러리 (추후 확장용)
+  gallerySlots      GallerySlot[]    // 사용 중인 갤러리 슬롯
+
   // 팔로우/팔로잉
   followers         Follow[]         @relation("user_following", fields: [], references: [])
   followings        Follow[]         @relation("user_follower", fields: [], references: [])
@@ -82,6 +86,7 @@ model Post {
   exposures    PostExposure[]
   views        PostView[]
   comments     Comment[]
+  artwork      Artwork?      // 갤러리 전시 작품 (있는 경우)
 
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -342,4 +347,73 @@ model Notification {
   
   @@index([recipientId, isRead, createdAt])
   @@index([createdAt]) // 정리용
+}
+
+// 3D 갤러리 시스템
+model Gallery {
+  id               Int      @id @default(autoincrement())
+  name             String   // 갤러리 이름
+  description      String?  // 갤러리 설명
+  type             String   @default("PUBLIC") // "PUBLIC", "PRIVATE" - 추후 개인 갤러리 확장용
+  ownerId          Int?     // 갤러리 소유자 (개인 갤러리인 경우)
+  owner            User?    @relation(fields: [ownerId], references: [id])
+  
+  totalSlots       Int      @default(10) // 총 슬롯 수
+  visitorCount     Int      @default(0) // 총 방문자 수
+  monthlyVisitors  Int      @default(0) // 이번달 방문자 수
+  isActive         Boolean  @default(true) // 갤러리 활성화 여부
+  
+  slots            GallerySlot[] // 갤러리 슬롯들
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  @@index([type])
+  @@index([isActive])
+}
+
+// 갤러리 슬롯
+model GallerySlot {
+  id           Int      @id @default(autoincrement())
+  gallery      Gallery  @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  galleryId    Int
+  slotNumber   Int      // 슬롯 번호 (1-10)
+  
+  // 현재 사용자 정보
+  isOccupied   Boolean  @default(false) // 점유 여부
+  occupant     User?    @relation(fields: [occupantId], references: [id])
+  occupantId   Int?     // 슬롯 사용자
+  
+  artwork      Artwork? // 현재 전시 중인 작품
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@unique([galleryId, slotNumber])
+  @@index([isOccupied])
+}
+
+// 갤러리 작품 (기존 Post와 연결)
+model Artwork {
+  id           Int         @id @default(autoincrement())
+  post         Post        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId       Int         @unique // 하나의 게시물당 하나의 작품
+  slot         GallerySlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  slotId       Int         @unique // 하나의 슬롯당 하나의 작품
+  
+  // 전시 정보
+  title        String      // 작품 제목 (Post.title과 동일하거나 다를 수 있음)
+  artist       String      // 작가명
+  description  String?     // 작품 설명
+  
+  // 갤러리 통계 (Post의 통계와 별개로 관리)
+  galleryViews Int         @default(0) // 갤러리에서의 조회수
+  galleryLikes Int         @default(0) // 갤러리에서의 좋아요 수
+  
+  displayStartDate DateTime @default(now()) // 전시 시작일
+  
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  
+  @@index([postId])
 }

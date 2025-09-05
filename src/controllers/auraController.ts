@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { AuraService } from '../services/auraService';
-import { prisma } from '../config/db';
+import { Request, Response, NextFunction } from "express";
+import { AuraService } from "../services/auraService";
+import { prisma } from "../config/db";
 
 // 사용자의 일일 퀘스트 진행도 조회
 export const getDailyQuests = async (
@@ -11,7 +11,7 @@ export const getDailyQuests = async (
   try {
     const userId = req.user?.id;
     if (!userId) {
-      return res.status(401).json({ message: 'Authentication required' });
+      return res.status(401).json({ message: "Authentication required" });
     }
 
     const progress = await AuraService.getUserDailyProgress(userId);
@@ -30,24 +30,24 @@ export const getAuraBalance = async (
   try {
     const userId = req.user?.id;
     if (!userId) {
-      return res.status(401).json({ message: 'Authentication required' });
+      return res.status(401).json({ message: "Authentication required" });
     }
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
         auraBalance: true,
-        totalAuraEarned: true
-      }
+        totalAuraEarned: true,
+      },
     });
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: "User not found" });
     }
 
     res.json({
       balance: user.auraBalance,
-      totalEarned: user.totalAuraEarned
+      totalEarned: user.totalAuraEarned,
     });
   } catch (error) {
     next(error);
@@ -63,7 +63,7 @@ export const getTransactionHistory = async (
   try {
     const userId = req.user?.id;
     if (!userId) {
-      return res.status(401).json({ message: 'Authentication required' });
+      return res.status(401).json({ message: "Authentication required" });
     }
 
     const page = parseInt(req.query.page as string) || 1;
@@ -85,21 +85,30 @@ export const transferAura = async (
   try {
     const fromUserId = req.user?.id;
     if (!fromUserId) {
-      return res.status(401).json({ message: 'Authentication required' });
+      return res.status(401).json({ message: "Authentication required" });
     }
 
     const { toUserId, amount, message } = req.body;
 
     if (!toUserId || !amount) {
-      return res.status(400).json({ message: 'toUserId and amount are required' });
+      return res
+        .status(400)
+        .json({ message: "toUserId and amount are required" });
     }
 
-    if (typeof amount !== 'number' || amount <= 0) {
-      return res.status(400).json({ message: 'Amount must be a positive number' });
+    if (typeof amount !== "number" || amount <= 0) {
+      return res
+        .status(400)
+        .json({ message: "Amount must be a positive number" });
     }
 
-    const result = await AuraService.transferAura(fromUserId, toUserId, amount, message);
-    
+    const result = await AuraService.transferAura(
+      fromUserId,
+      toUserId,
+      amount,
+      message
+    );
+
     if (result.success) {
       res.json(result);
     } else {
@@ -119,13 +128,13 @@ export const incrementQuest = async (
   try {
     const userId = req.user?.id;
     if (!userId) {
-      return res.status(401).json({ message: 'Authentication required' });
+      return res.status(401).json({ message: "Authentication required" });
     }
 
     const { questType, relatedPostId, relatedCommentId } = req.body;
 
     if (!questType) {
-      return res.status(400).json({ message: 'questType is required' });
+      return res.status(400).json({ message: "questType is required" });
     }
 
     const result = await AuraService.incrementQuestProgress(
@@ -150,13 +159,13 @@ export const claimQuestReward = async (
   try {
     const userId = req.user?.id;
     if (!userId) {
-      return res.status(401).json({ message: 'Authentication required' });
+      return res.status(401).json({ message: "Authentication required" });
     }
 
     const { questId } = req.body;
 
     if (!questId) {
-      return res.status(400).json({ message: 'questId is required' });
+      return res.status(400).json({ message: "questId is required" });
     }
 
     const result = await AuraService.claimQuestReward(userId, questId);
@@ -180,10 +189,13 @@ export const completeLoginQuest = async (
   try {
     const userId = req.user?.id;
     if (!userId) {
-      return res.status(401).json({ message: 'Authentication required' });
+      return res.status(401).json({ message: "Authentication required" });
     }
 
-    const result = await AuraService.incrementQuestProgress(userId, 'DAILY_LOGIN');
+    const result = await AuraService.incrementQuestProgress(
+      userId,
+      "DAILY_LOGIN"
+    );
     res.json(result);
   } catch (error) {
     next(error);
@@ -198,27 +210,29 @@ export const adminAdjustAura = async (
 ) => {
   try {
     // 관리자 권한 확인
-    if (req.user?.role !== 'ADMIN') {
-      return res.status(403).json({ message: 'Admin access required' });
+    if (req.user?.role !== "ADMIN") {
+      return res.status(403).json({ message: "Admin access required" });
     }
 
     const { userId, amount, description } = req.body;
 
     if (!userId || !amount) {
-      return res.status(400).json({ message: 'userId and amount are required' });
+      return res
+        .status(400)
+        .json({ message: "userId and amount are required" });
     }
 
     const newBalance = await AuraService.addAura(
       userId,
       amount,
-      'ADMIN',
-      description || 'Admin adjustment'
+      "ADMIN",
+      description || "Admin adjustment"
     );
 
     res.json({
       success: true,
       newBalance,
-      message: `Aura ${amount > 0 ? 'added' : 'deducted'} successfully`
+      message: `Aura ${amount > 0 ? "added" : "deducted"} successfully`,
     });
   } catch (error) {
     next(error);
@@ -232,12 +246,12 @@ export const adminGetQuests = async (
   next: NextFunction
 ) => {
   try {
-    if (req.user?.role !== 'ADMIN') {
-      return res.status(403).json({ message: 'Admin access required' });
+    if (req.user?.role !== "ADMIN") {
+      return res.status(403).json({ message: "Admin access required" });
     }
 
     const quests = await prisma.dailyQuest.findMany({
-      orderBy: { id: 'asc' }
+      orderBy: { id: "asc" },
     });
 
     res.json({ quests });
@@ -252,8 +266,8 @@ export const adminUpdateQuest = async (
   next: NextFunction
 ) => {
   try {
-    if (req.user?.role !== 'ADMIN') {
-      return res.status(403).json({ message: 'Admin access required' });
+    if (req.user?.role !== "ADMIN") {
+      return res.status(403).json({ message: "Admin access required" });
     }
 
     const { questId } = req.params;
@@ -261,7 +275,7 @@ export const adminUpdateQuest = async (
 
     const quest = await prisma.dailyQuest.update({
       where: { id: parseInt(questId) },
-      data: updateData
+      data: updateData,
     });
 
     res.json({ quest });
@@ -277,8 +291,8 @@ export const adminGetStats = async (
   next: NextFunction
 ) => {
   try {
-    if (req.user?.role !== 'ADMIN') {
-      return res.status(403).json({ message: 'Admin access required' });
+    if (req.user?.role !== "ADMIN") {
+      return res.status(403).json({ message: "Admin access required" });
     }
 
     const days = parseInt(req.query.days as string) || 7;
@@ -288,9 +302,9 @@ export const adminGetStats = async (
     const stats = await prisma.auraStats.findMany({
       where: {
         date: { gte: startDate },
-        period: 'DAILY'
+        period: "DAILY",
       },
-      orderBy: { date: 'desc' }
+      orderBy: { date: "desc" },
     });
 
     res.json({ stats });
@@ -307,17 +321,17 @@ export const updateDailyStats = async (
 ) => {
   try {
     // API 키나 특별한 인증 방식으로 보호 필요
-    const apiKey = req.headers['x-api-key'];
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== process.env.CRON_API_KEY) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const targetDate = req.query.date 
-      ? new Date(req.query.date as string) 
+    const targetDate = req.query.date
+      ? new Date(req.query.date as string)
       : undefined;
 
     await AuraService.updateDailyStats(targetDate);
-    res.json({ success: true, message: 'Daily stats updated' });
+    res.json({ success: true, message: "Daily stats updated" });
   } catch (error) {
     next(error);
   }
@@ -330,12 +344,12 @@ export const initializeQuests = async (
   next: NextFunction
 ) => {
   try {
-    if (req.user?.role !== 'ADMIN') {
-      return res.status(403).json({ message: 'Admin access required' });
+    if (req.user?.role !== "ADMIN") {
+      return res.status(403).json({ message: "Admin access required" });
     }
 
     await AuraService.initializeDefaultQuests();
-    res.json({ success: true, message: 'Default quests initialized' });
+    res.json({ success: true, message: "Default quests initialized" });
   } catch (error) {
     next(error);
   }

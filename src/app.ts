@@ -8,6 +8,7 @@ import { postRouter } from "./routes/post";
 import { searchRouter } from "./routes/search";
 import { auraRouter } from "./routes/aura";
 import notificationRouter from "./routes/notification";
+import { galleryRouter } from "./routes/gallery";
 import { errorHandler } from "./middlewares/error";
 
 export const createApp = () => {
@@ -23,6 +24,7 @@ export const createApp = () => {
   app.use("/search", searchRouter);
   app.use("/aura", auraRouter);
   app.use("/notifications", notificationRouter);
+  app.use("/gallery", galleryRouter);
   app.get("/healthz", (_req, res) => res.json({ status: "ok" }));
   app.use(errorHandler);
 
