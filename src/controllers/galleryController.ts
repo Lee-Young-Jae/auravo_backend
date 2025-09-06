@@ -35,6 +35,10 @@ export const getGalleryById = async (
     const { galleryId } = req.params;
     const userId = req.user?.id;
 
+    if (!galleryId || isNaN(Number(galleryId))) {
+      return res.status(400).json({ message: "Valid gallery ID is required" });
+    }
+
     const gallery = await GalleryService.getGalleryById(
       Number(galleryId),
       userId
@@ -58,6 +62,10 @@ export const getGallerySlots = async (
 ) => {
   try {
     const { galleryId } = req.params;
+
+    if (!galleryId || isNaN(Number(galleryId))) {
+      return res.status(400).json({ message: "Valid gallery ID is required" });
+    }
 
     const slots = await GalleryService.getGallerySlots(Number(galleryId));
     res.json({ slots });
@@ -176,6 +184,14 @@ export const occupySlot = async (
       return res.status(401).json({ message: "Authentication required" });
     }
 
+    if (!galleryId || isNaN(Number(galleryId))) {
+      return res.status(400).json({ message: "Valid gallery ID is required" });
+    }
+
+    if (!slotNumber || isNaN(Number(slotNumber))) {
+      return res.status(400).json({ message: "Valid slot number is required" });
+    }
+
     const result = await GalleryService.occupySlot(
       Number(galleryId),
       Number(slotNumber),
@@ -253,12 +269,10 @@ export const createArtwork = async (
     });
 
     if (!artwork) {
-      return res
-        .status(400)
-        .json({
-          message:
-            "Failed to create artwork. Check if slot is available and post exists.",
-        });
+      return res.status(400).json({
+        message:
+          "Failed to create artwork. Check if slot is available and post exists.",
+      });
     }
 
     res.status(201).json(artwork);
@@ -435,6 +449,48 @@ export const toggleArtworkLike = async (
       userId
     );
     res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// 특정 갤러리에서 전시 가능한 사용자 게시글 조회
+export const getUserAvailablePosts = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.user?.id;
+    const { galleryId } = req.params;
+    const { limit = 20, cursor } = req.query as {
+      limit?: string;
+      cursor?: string;
+    };
+
+    if (!userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    if (!galleryId || isNaN(Number(galleryId))) {
+      return res.status(400).json({ message: "Valid gallery ID is required" });
+    }
+
+    const parsedLimit = Math.min(parseInt(String(limit)) || 20, 50);
+
+    const result = await GalleryService.getUserAvailablePosts(
+      Number(galleryId),
+      userId,
+      parsedLimit,
+      cursor
+    );
+
+    res.json({
+      message: "갤러리 전시 가능한 게시글을 성공적으로 조회했습니다",
+      posts: result.posts,
+      hasMore: result.hasMore,
+      nextCursor: result.nextCursor,
+    });
   } catch (error) {
     next(error);
   }

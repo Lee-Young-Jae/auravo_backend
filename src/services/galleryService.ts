@@ -263,7 +263,7 @@ export class GalleryService {
     }
 
     if (slot.isOccupied) {
-      return { success: false, message: "Slot is already occupied" };
+      return { success: true, message: "Slot is already occupied" };
     }
 
     await prisma.gallerySlot.update({
@@ -582,6 +582,100 @@ export class GalleryService {
     });
 
     return { success: true, liked: true };
+  }
+
+  // 특정 갤러리에서 전시 가능한 사용자의 게시글 조회
+  static async getUserAvailablePosts(
+    galleryId: number,
+    userId: number,
+    limit: number = 20,
+    cursor?: string
+  ) {
+    const parsedLimit = Math.min(limit, 50);
+
+    // 현재 갤러리에 이미 전시된 게시글 ID 목록 조회
+    const exhibitedPostIds = await prisma.artwork.findMany({
+      where: {
+        slot: {
+          galleryId: galleryId,
+        },
+        post: {
+          authorId: userId,
+        },
+      },
+      select: {
+        postId: true,
+      },
+    });
+
+    const exhibitedIds = exhibitedPostIds.map((item) => item.postId);
+
+    // 커서 조건 구성
+    const cursorCondition: any = {};
+    if (cursor) {
+      try {
+        const [createdAt, id] = cursor.split("_");
+        cursorCondition.OR = [
+          { createdAt: { lt: new Date(createdAt) } },
+          {
+            AND: [
+              { createdAt: new Date(createdAt) },
+              { id: { lt: parseInt(id) } },
+            ],
+          },
+        ];
+      } catch (error) {
+        // 잘못된 커서는 무시
+      }
+    }
+
+    // 전시되지 않은 게시글 조회
+    const posts = await prisma.post.findMany({
+      where: {
+        AND: [
+          cursorCondition,
+          { authorId: userId },
+          { deletedAt: null },
+          { id: { notIn: exhibitedIds } },
+        ],
+      },
+      include: {
+        photos: true,
+        _count: {
+          select: {
+            likes: true,
+            comments: true,
+          },
+        },
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: parsedLimit + 1, // +1로 hasMore 계산
+    });
+
+    // posts에 stats 정보 추가
+    const postsWithStats = posts.map((post) => ({
+      ...post,
+      stats: {
+        likes: post._count.likes,
+        comments: post._count.comments,
+        views: post.viewCount || 0,
+      },
+    }));
+
+    // 페이지네이션 처리
+    const items = postsWithStats.slice(0, parsedLimit);
+    const hasMore = postsWithStats.length > parsedLimit;
+    const nextCursor = hasMore
+      ? `${items[items.length - 1].createdAt.toISOString()}_${
+          items[items.length - 1].id
+        }`
+      : undefined;
+
+    return {
+      posts: items,
+      hasMore,
+      nextCursor,
+    };
   }
 
   // 월별 방문자 리셋 (크론잡용)

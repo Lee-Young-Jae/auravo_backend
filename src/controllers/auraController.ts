@@ -102,6 +102,8 @@ export const transferAura = async (
         .json({ message: "Amount must be a positive number" });
     }
 
+    console.log(req.user);
+
     const result = await AuraService.transferAura(
       fromUserId,
       toUserId,
