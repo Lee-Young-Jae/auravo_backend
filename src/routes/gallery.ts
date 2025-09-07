@@ -17,6 +17,7 @@ import {
   incrementGalleryVisitors,
   incrementArtworkViews,
   toggleArtworkLike,
+  getUserAvailablePosts,
 } from "../controllers/galleryController";
 import { authenticate } from "../middlewares/auth";
 import { optionalAuthenticate } from "../middlewares/optionalAuth";
@@ -93,3 +94,6 @@ galleryRouter.post(
   authenticate,
   toggleArtworkLike
 );
+
+// 특정 갤러리에서 전시 가능한 사용자 게시글 조회
+galleryRouter.get("/:galleryId/available-posts", authenticate, getUserAvailablePosts);
