@@ -126,6 +126,31 @@ export class GalleryService {
       return null;
     }
 
+    // 전시된 작품 총 개수 계산
+    if (gallery) {
+      const exhibitedArtworksCount = gallery.slots.filter(
+        (slot) => slot.artwork !== null
+      ).length;
+
+      // 각 슬롯에 slotNumber 정보가 이미 포함되어 있고,
+      // artwork가 있는 경우 artwork에도 slotNumber 추가
+      const slotsWithSlotNumber = gallery.slots.map((slot) => ({
+        ...slot,
+        artwork: slot.artwork
+          ? {
+              ...slot.artwork,
+              slotNumber: slot.slotNumber,
+            }
+          : null,
+      }));
+
+      return {
+        ...gallery,
+        slots: slotsWithSlotNumber,
+        exhibitedArtworksCount,
+      };
+    }
+
     return gallery;
   }
 

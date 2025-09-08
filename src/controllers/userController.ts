@@ -427,6 +427,61 @@ export const getUserProfile = async (
       isFollowing = !!follow;
     }
 
+    // 사용자가 소유한 갤러리 조회
+    const isMe = req.user?.id === userIdNum;
+    const galleries = await prisma.gallery.findMany({
+      where: {
+        ownerId: userIdNum,
+        isActive: true,
+        // 본인이 아니면 공개 갤러리만 조회
+        ...(isMe ? {} : { type: "PUBLIC" }),
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        type: true,
+        totalSlots: true,
+        visitorCount: true,
+        monthlyVisitors: true,
+        createdAt: true,
+        _count: {
+          select: {
+            slots: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    // 각 갤러리의 전시된 작품 수 계산
+    const galleriesWithStats = await Promise.all(
+      galleries.map(async (gallery) => {
+        const exhibitedCount = await prisma.gallerySlot.count({
+          where: {
+            galleryId: gallery.id,
+            artwork: {
+              isNot: null,
+            },
+          },
+        });
+
+        return {
+          id: gallery.id,
+          name: gallery.name,
+          description: gallery.description,
+          type: gallery.type,
+          totalSlots: gallery.totalSlots,
+          exhibitedCount,
+          visitorCount: gallery.visitorCount,
+          monthlyVisitors: gallery.monthlyVisitors,
+          createdAt: gallery.createdAt,
+        };
+      })
+    );
+
     res.json({
       user: mapToPublicProfile(user),
       profileStats: {
@@ -436,7 +491,8 @@ export const getUserProfile = async (
         followers: user._count.followers,
         followings: user._count.followings,
       },
-      isMe: req.user?.id === userIdNum,
+      galleries: galleriesWithStats,
+      isMe,
       isFollowing,
     });
   } catch (err) {
@@ -488,7 +544,62 @@ export const getMyProfile = async (
       return res.status(404).json({ message: "사용자를 찾을 수 없습니다" });
     }
 
-    res.json({ user: mapToMyProfile(user) });
+    // 내가 소유한 모든 갤러리 조회 (비공개 포함)
+    const galleries = await prisma.gallery.findMany({
+      where: {
+        ownerId: userId,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        type: true,
+        totalSlots: true,
+        visitorCount: true,
+        monthlyVisitors: true,
+        createdAt: true,
+        _count: {
+          select: {
+            slots: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    // 각 갤러리의 전시된 작품 수 계산
+    const galleriesWithStats = await Promise.all(
+      galleries.map(async (gallery) => {
+        const exhibitedCount = await prisma.gallerySlot.count({
+          where: {
+            galleryId: gallery.id,
+            artwork: {
+              isNot: null,
+            },
+          },
+        });
+
+        return {
+          id: gallery.id,
+          name: gallery.name,
+          description: gallery.description,
+          type: gallery.type,
+          totalSlots: gallery.totalSlots,
+          exhibitedCount,
+          visitorCount: gallery.visitorCount,
+          monthlyVisitors: gallery.monthlyVisitors,
+          createdAt: gallery.createdAt,
+        };
+      })
+    );
+
+    res.json({ 
+      user: mapToMyProfile(user),
+      galleries: galleriesWithStats,
+    });
   } catch (err) {
     next(err);
   }
